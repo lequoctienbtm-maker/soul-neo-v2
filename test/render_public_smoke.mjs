@@ -95,6 +95,12 @@ async function main() {
     const chat = await guest.waitFor('world_chat', (message) => message.payload.text === chatText);
     assert(chat.payload.nickname === `HOST${unique}`, 'World chat sender identity is incorrect');
 
+    const renamedNickname = `NOVA${unique}`;
+    host.send('update_nickname', { nickname: renamedNickname }, 'nickname-update');
+    const nicknameUpdated = await host.waitFor('nickname_updated', (message) => message.payload.nickname === renamedNickname);
+    assert(nicknameUpdated.payload.nickname === renamedNickname, 'Nickname update was not accepted');
+    await guest.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.members.some((member) => member.nickname === renamedNickname));
+
     host.send('set_map', { mapId: 'story_02' }, 'set-map');
     await Promise.all([
       host.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.selectedMap?.id === 'story_02'),

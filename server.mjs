@@ -32,6 +32,7 @@ const MAP_DEFS = [
   { id: 'story_05', label: 'WARDEN CORE // 05', stage: 5, requiredStage: 5 },
 ];
 const MAX_ENEMIES = 16;
+const MAX_PROJECTILES = 96;
 const ENEMY_SPAWN_INTERVAL_MS = 2100;
 const WORLD_CHAT_MAX_MESSAGES = 40;
 const WORLD_CHAT_COOLDOWN_MS = 1500;
@@ -263,6 +264,7 @@ function snapshot(room) {
 }
 
 function spawnProjectile(match, entity, direction, speed, life, damage, radius, effect = 'damage', piercing = false, lateral = 0) {
+  if (match.projectiles.size >= MAX_PROJECTILES) return false;
   const d = normalizedVector(direction);
   const side = { x: -d.y, y: d.x };
   const origin = {
@@ -282,6 +284,7 @@ function spawnProjectile(match, entity, direction, speed, life, damage, radius, 
     effect,
     piercing,
   });
+  return true;
 }
 
 function spawnAttackProjectiles(match, entity) {

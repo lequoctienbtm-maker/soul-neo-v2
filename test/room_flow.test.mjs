@@ -175,3 +175,44 @@ test('host map selection enforces squad eligibility and world chat is validated'
   const blocked = await guest.waitFor('error');
   assert.equal(blocked.payload.code, 'INVALID_CHAT');
 });
+
+test('four-player action spam keeps authoritative projectile and enemy snapshots bounded', async (t) => {
+  const port = 8794;
+  const socketUrl = `ws://127.0.0.1:${port}`;
+  const serverProcess = spawn(globalThis.process.execPath, ['server.mjs'], {
+    cwd: new URL('..', import.meta.url),
+    env: { ...globalThis.process.env, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  t.after(() => serverProcess.kill('SIGTERM'));
+  await once(serverProcess.stdout, 'data');
+
+  const clients = Array.from({ length: 4 }, (_, index) => makeClient(`Stress ${index + 1}`, index, socketUrl));
+  t.after(() => clients.forEach((client) => client.ws.close()));
+  await Promise.all(clients.map(async (client) => {
+    await once(client.ws, 'open');
+    client.request('hello', { nickname: client.name, characterIndex: client.characterIndex, maxStoryStage: 2 });
+    await client.waitFor('welcome');
+  }));
+  clients[0].request('create_room', { name: 'Stress Room', privacy: 'PUBLIC' });
+  const created = await clients[0].waitFor('room_state', (message) => message.payload.name === 'Stress Room');
+  for (const client of clients.slice(1)) {
+    client.request('join_room', { roomId: created.payload.id });
+    await client.waitFor('room_state', (message) => message.payload.members.length >= 2);
+  }
+  clients[0].request('set_map', { mapId: 'story_02' });
+  await clients[0].waitFor('room_state', (message) => message.payload.selectedMap?.id === 'story_02');
+  for (const client of clients) client.request('set_ready', { ready: true });
+  await clients[0].waitFor('room_state', (message) => message.payload.members.every((member) => member.ready));
+  clients[0].request('start_match');
+  await Promise.all(clients.map((client) => client.waitFor('match_started')));
+
+  const actions = ['attack', 'skill1', 'skill2', 'ultimate', 'dash'];
+  for (let tick = 0; tick < 40; tick += 1) {
+    for (const client of clients) client.request('action_request', { action: actions[tick % actions.length], aim: { x: 1, y: 0 } });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  const snapshot = await clients[0].waitFor('world_snapshot', (message) => Array.isArray(message.payload.projectiles));
+  assert.ok(snapshot.payload.projectiles.length <= 96, 'projectile cap exceeded');
+  assert.ok(snapshot.payload.enemies.length <= 16, 'enemy cap exceeded');
+});
