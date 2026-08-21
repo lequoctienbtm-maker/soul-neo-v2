@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: neon-soul-realtime
+    runtime: node
+    region: singapore
+    buildCommand: pnpm install --frozen-lockfile
+    startCommand: pnpm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
