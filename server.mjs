@@ -18,6 +18,8 @@ const ACTION_EFFECTS = {
 const CHARACTER_STATS = [
   { hp: 100, speed: 310 }, { hp: 92, speed: 330 }, { hp: 118, speed: 275 }, { hp: 88, speed: 350 },
   { hp: 132, speed: 255 }, { hp: 106, speed: 295 }, { hp: 96, speed: 365 }, { hp: 148, speed: 240 },
+  { hp: 124, speed: 287 }, { hp: 82, speed: 382 }, { hp: 86, speed: 274 }, { hp: 176, speed: 226 },
+  { hp: 108, speed: 298 }, { hp: 75, speed: 374 }, { hp: 98, speed: 278 },
 ];
 const ENEMY_TYPES = [
   { type: 'Null Wraith', hp: 70, speed: 88, damage: 8, radius: 28 },
@@ -321,6 +323,32 @@ function spawnAttackProjectiles(match, entity) {
     case 7:
       spawnProjectile(match, entity, d, 450, 1.8, 58, 15, 'pull');
       break;
+    case 8:
+      spawnProjectile(match, entity, d, 560, 0.75, 42, 18, 'knockback');
+      break;
+    case 9:
+      for (let index = 0; index < 3; index += 1) {
+        const angle = (index - 1) * 0.10;
+        const rotated = { x: d.x * Math.cos(angle) - d.y * Math.sin(angle), y: d.x * Math.sin(angle) + d.y * Math.cos(angle) };
+        spawnProjectile(match, entity, rotated, 960, 1.25, 23, 6, 'damage', true);
+      }
+      break;
+    case 10:
+      spawnProjectile(match, entity, d, 590, 1.55, 46, 12, 'chain_stun');
+      break;
+    case 11:
+      spawnProjectile(match, entity, d, 480, 1.50, 68, 16, 'knockback');
+      break;
+    case 12:
+      spawnProjectile(match, entity, d, 760, 1.25, 18, 8, 'damage', true);
+      break;
+    case 13:
+      spawnProjectile(match, entity, d, 1000, 1.0, 25, 6, 'mark', false, 11);
+      spawnProjectile(match, entity, d, 1000, 1.0, 25, 6, 'mark', false, -11);
+      break;
+    case 14:
+      spawnProjectile(match, entity, d, 510, 1.55, 52, 13, 'explosion');
+      break;
     default:
       spawnProjectile(match, entity, d, 850, 1.0, 24, 7);
   }
@@ -623,7 +651,7 @@ wss.on('connection', (ws) => {
       if (!message || typeof message.type !== 'string') throw new Error('Malformed envelope');
       if (message.type === 'hello') {
         if (player) throw new DomainError('INVALID_REQUEST', 'ALREADY AUTHENTICATED');
-        player = { id: randomUUID(), ws, roomId: null, ready: false, connected: true, nickname: sanitizeName(message.payload?.nickname), characterIndex: clamp(Number(message.payload?.characterIndex || 0), 0, 7), maxStoryStage: clamp(Number(message.payload?.maxStoryStage || 1), 1, 10), lastWorldChatAt: 0 };
+        player = { id: randomUUID(), ws, roomId: null, ready: false, connected: true, nickname: sanitizeName(message.payload?.nickname), characterIndex: clamp(Number(message.payload?.characterIndex || 0), 0, CHARACTER_STATS.length - 1), maxStoryStage: clamp(Number(message.payload?.maxStoryStage || 1), 1, 10), lastWorldChatAt: 0 };
         clients.set(player.id, player);
         send(ws, 'welcome', { playerId: player.id, maxPlayers: MAX_PLAYERS }, message.requestId || null);
         send(ws, 'room_list', { rooms: registry.summaries() });

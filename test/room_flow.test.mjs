@@ -187,7 +187,8 @@ test('four-player action spam keeps authoritative projectile and enemy snapshots
   t.after(() => serverProcess.kill('SIGTERM'));
   await once(serverProcess.stdout, 'data');
 
-  const clients = Array.from({ length: 4 }, (_, index) => makeClient(`Stress ${index + 1}`, index, socketUrl));
+  const evolutionIndexes = [8, 9, 10, 14];
+  const clients = Array.from({ length: 4 }, (_, index) => makeClient(`Stress ${index + 1}`, evolutionIndexes[index], socketUrl));
   t.after(() => clients.forEach((client) => client.ws.close()));
   await Promise.all(clients.map(async (client) => {
     await once(client.ws, 'open');
@@ -215,4 +216,5 @@ test('four-player action spam keeps authoritative projectile and enemy snapshots
   const snapshot = await clients[0].waitFor('world_snapshot', (message) => Array.isArray(message.payload.projectiles));
   assert.ok(snapshot.payload.projectiles.length <= 96, 'projectile cap exceeded');
   assert.ok(snapshot.payload.enemies.length <= 16, 'enemy cap exceeded');
+  assert.ok(snapshot.payload.players.some((player) => player.characterIndex === 14), 'evolution character index 14 was clamped or omitted');
 });
