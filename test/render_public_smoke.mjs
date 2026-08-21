@@ -70,7 +70,7 @@ async function main() {
   const unique = Date.now().toString().slice(-6);
   try {
     await host.connect();
-    host.send('hello', { nickname: `HOST${unique}`, characterIndex: 0 }, 'host-hello');
+    host.send('hello', { nickname: `HOST${unique}`, characterIndex: 0, maxStoryStage: 2 }, 'host-hello');
     const hostWelcome = await host.waitFor('welcome');
     assert(hostWelcome.payload.playerId, 'Host received no player ID');
 
@@ -81,13 +81,24 @@ async function main() {
 
     if (STAGGER_MS > 0) await delay(STAGGER_MS);
     await guest.connect();
-    guest.send('hello', { nickname: `GUEST${unique}`, characterIndex: 1 }, 'guest-hello');
+    guest.send('hello', { nickname: `GUEST${unique}`, characterIndex: 1, maxStoryStage: 2 }, 'guest-hello');
     const guestWelcome = await guest.waitFor('welcome');
     assert(guestWelcome.payload.playerId, 'Guest received no player ID');
     guest.send('join_room', { roomId }, 'join');
     await Promise.all([
       host.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.playerCount === 2),
       guest.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.playerCount === 2),
+    ]);
+
+    const chatText = `RELAY CHECK ${unique}`;
+    host.send('world_chat', { text: chatText }, 'world-chat');
+    const chat = await guest.waitFor('world_chat', (message) => message.payload.text === chatText);
+    assert(chat.payload.nickname === `HOST${unique}`, 'World chat sender identity is incorrect');
+
+    host.send('set_map', { mapId: 'story_02' }, 'set-map');
+    await Promise.all([
+      host.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.selectedMap?.id === 'story_02'),
+      guest.waitFor('room_state', (message) => message.payload.id === roomId && message.payload.selectedMap?.id === 'story_02'),
     ]);
 
     host.send('set_ready', { ready: true }, 'host-ready');
@@ -112,7 +123,7 @@ async function main() {
     assert(Number.isFinite(action.payload.serverTime), 'Action did not include authoritative server time');
     assert(snapshot.payload.status === 'PLAYING', 'World snapshot is not playing');
 
-    console.log(JSON.stringify({ ok: true, relay: RELAY_URL, roomId, players: snapshot.payload.players.length }));
+    console.log(JSON.stringify({ ok: true, relay: RELAY_URL, roomId, players: snapshot.payload.players.length, map: 'story_02', worldChat: true }));
   } finally {
     host.close();
     guest.close();

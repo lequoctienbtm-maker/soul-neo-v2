@@ -522,6 +522,13 @@ function handleMessage(player, message, requestId) {
       broadcastRoom(room);
       return;
     }
+    case 'update_nickname': {
+      player.nickname = sanitizeName(message.payload?.nickname, player.nickname);
+      const room = registry.rooms.get(player.roomId);
+      if (room && room.status === 'WAITING') broadcastRoom(room);
+      send(player.ws, 'nickname_updated', { nickname: player.nickname });
+      return;
+    }
     case 'set_map': {
       const room = registry.rooms.get(player.roomId);
       if (!room || room.status !== 'WAITING') throw new DomainError('INVALID_ROOM', 'ROOM CANNOT CHANGE MAP');

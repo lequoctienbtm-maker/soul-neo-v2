@@ -161,6 +161,12 @@ test('host map selection enforces squad eligibility and world chat is validated'
   const received = await guest.waitFor('world_chat', (message) => message.payload.text === 'Signal online.');
   assert.equal(received.payload.nickname, 'Map Host');
 
+  host.request('update_nickname', { nickname: 'Renamed Host' });
+  const renamed = await host.waitFor('nickname_updated');
+  assert.equal(renamed.payload.nickname, 'Renamed Host');
+  const renamedLobby = await guest.waitFor('room_state', (message) => message.payload.members.some((member) => member.nickname === 'Renamed Host'));
+  assert.ok(renamedLobby.payload.members.some((member) => member.nickname === 'Renamed Host'));
+
   host.request('world_chat', { text: 'Too fast.' });
   const rateLimited = await host.waitFor('error');
   assert.equal(rateLimited.payload.code, 'CHAT_RATE_LIMITED');
